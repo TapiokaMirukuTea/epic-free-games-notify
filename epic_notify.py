@@ -31,9 +31,13 @@ games = data["data"]["Catalog"]["searchStore"]["elements"]
 free_games = []
 
 for g in games:
-    promos = g.get("promotions")
-    if not promos or not promos["promotionalOffers"]:
+    price_info = g.get("price", {}).get("totalPrice")
+    if not price_info:
         continue
+
+    if price_info.get("discountPrice") != 0:
+        continue
+
 
     offer = promos["promotionalOffers"][0]["promotionalOffers"][0]
     remain = remaining_time(offer["endDate"])
@@ -73,3 +77,4 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
+
