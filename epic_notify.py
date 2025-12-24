@@ -7,6 +7,8 @@ STATE_FILE = "last_games.json"
 URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=ja&country=JP"
 
 def remaining_time(end_iso):
+    if not end_iso:
+        return None
     end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
     now = datetime.now(timezone.utc)
     diff = end - now
@@ -16,6 +18,7 @@ def remaining_time(end_iso):
     if hours < 24:
         return f"残り {hours} 時間"
     return f"残り {hours // 24} 日"
+
 
 def load_last():
     if os.path.exists(STATE_FILE):
@@ -35,11 +38,13 @@ for g in games:
     if not price_info:
         continue
 
-    # 完全無料のみ
     if price_info.get("discountPrice") != 0:
         continue
 
     end_date = price_info.get("priceValidUntil")
+    if not end_date:
+        continue
+
     remain = remaining_time(end_date)
     if not remain:
         continue
@@ -78,6 +83,7 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
+
 
 
 
