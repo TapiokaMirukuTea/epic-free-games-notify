@@ -39,7 +39,6 @@ for g in games:
         continue
 
 
-    offer = promos["promotionalOffers"][0]["promotionalOffers"][0]
     remain = remaining_time(offer["endDate"])
     if not remain:
         continue
@@ -77,4 +76,5 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
+
 
