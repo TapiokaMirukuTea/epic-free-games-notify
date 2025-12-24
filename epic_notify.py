@@ -35,15 +35,16 @@ for g in games:
     if not price_info:
         continue
 
+    # 完全無料のみ
     if price_info.get("discountPrice") != 0:
         continue
 
-
-    remain = remaining_time(offer["endDate"])
+    end_date = price_info.get("priceValidUntil")
+    remain = remaining_time(end_date)
     if not remain:
         continue
 
-    price = g["price"]["totalPrice"]["fmtPrice"]["originalPrice"]
+    price = price_info["fmtPrice"]["originalPrice"]
     img = g["keyImages"][0]["url"]
     slug = g.get("productSlug")
     url = f"https://store.epicgames.com/ja/p/{slug}" if slug else ""
@@ -55,6 +56,7 @@ for g in games:
         "url": url,
         "image": img
     })
+
 
 last = load_last()
 current_titles = [g["title"] for g in free_games]
@@ -76,5 +78,6 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
+
 
 
