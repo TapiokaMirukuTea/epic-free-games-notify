@@ -1,41 +1,82 @@
 import requests, json, os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 STATE_FILE = "last_games.json"
 
 URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=ja&country=JP"
 
-# 残り時間表示
+JST = timezone(timedelta(hours=9))
+
+
+# =========================
+# 時刻関連
+# =========================
+def format_end_time(end_iso):
+    if not end_iso:
+        return None
+
+    end_utc = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+    end_jst = end_utc.astimezone(JST)
+
+    week = ["月", "火", "水", "木", "金", "土", "日"][end_jst.weekday()]
+    return f"{end_jst.month}/{end_jst.day}【{week}】{end_jst.hour}:00まで"
+
+
 def remaining_time(end_iso):
     if not end_iso:
         return None
-    end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
-    diff = end - now
+
+    end_utc = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+    end_jst = end_utc.astimezone(JST)
+    now = datetime.now(JST)
+
+    diff = end_jst - now
     hours = int(diff.total_seconds() // 3600)
+
     if hours < 0:
         return None
     if hours < 24:
         return f"残り {hours} 時間"
     return f"残り {hours // 24} 日"
 
-# 終了日時フォーマット（曜日付き）
-def format_end_date(end_iso):
-    dt = datetime.fromisoformat(end_iso.replace("Z", "+00:00")).astimezone()
-    weeks = ["月", "火", "水", "木", "金", "土", "日"]
-    w = weeks[dt.weekday()]
-    return f"{dt.month}月{dt.day}日【{w}】{dt.hour:02d}:{dt.minute:02d}"
 
+# =========================
+# 価格取得（最重要）
+# =========================
+def get_original_price(g):
+    price = g.get("price", {})
+    total = price.get("totalPrice", {})
+    fmt = total.get("fmtPrice", {})
+
+    original = fmt.get("originalPrice")
+
+    # 正常に取れた場合
+    if original and original not in ["0", "¥0", "$0"]:
+        return f"~~{original}~~"
+
+    # 取れなかった場合
+    return "通常価格 不明"
+
+
+# =========================
+# 状態保存
+# =========================
 def load_last():
     if os.path.exists(STATE_FILE):
-        return json.load(open(STATE_FILE, encoding="utf-8"))
+        with open(STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
     return []
 
-def save_last(titles):
-    json.dump(titles, open(STATE_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-# API取得
+def save_last(titles):
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(titles, f, ensure_ascii=False)
+
+
+# =========================
+# メイン処理
+# =========================
 data = requests.get(URL).json()
 games = data["data"]["Catalog"]["searchStore"]["elements"]
 
@@ -50,7 +91,7 @@ for g in games:
     if price_info.get("discountPrice") != 0:
         continue
 
-    # 正しい無料配布期間の取得
+    # 無料配布期間（promotions から取得）
     promotions = g.get("promotions")
     if not promotions:
         continue
@@ -68,24 +109,40 @@ for g in games:
     if not remain:
         continue
 
-    price = price_info["fmtPrice"]["originalPrice"]
-    img = g["keyImages"][0]["url"]
+    end_text = format_end_time(end_date)
+
+    # 価格
+    price_text = get_original_price(g)
+
+    # URL
     slug = g.get("productSlug")
     url = f"https://store.epicgames.com/ja/p/{slug}" if slug else ""
 
+    # 画像（横長優先）
+    img = None
+    for i in g.get("keyImages", []):
+        if i["type"] in ["OfferImageWide", "DieselStoreFrontWide"]:
+            img = i["url"]
+            break
+    if not img and g.get("keyImages"):
+        img = g["keyImages"][0]["url"]
+
     free_games.append({
         "title": g["title"],
-        "price": price,
+        "price": price_text,
         "remain": remain,
-        "end_date": end_date,
+        "end": end_text,
         "url": url,
         "image": img
     })
 
+
+# =========================
+# 通知
+# =========================
 last = load_last()
 current_titles = [g["title"] for g in free_games]
 
-# 変更があった時だけ通知
 if free_games and current_titles != last:
     embeds = []
 
@@ -94,13 +151,11 @@ if free_games and current_titles != last:
             "title": f"🎮 {g['title']}",
             "url": g["url"],
             "description": (
-                f"💰 **価　格**：~~{g['price']}~~ → **無料**\n"
-                f"⏰ **割引期間**：{format_end_date(g['end_date'])} まで\n"
-                f"⌛ {g['remain']}"
+                f"💰 価格：{g['price']} → **無料**\n"
+                f"📅 割引期間：{g['end']}\n"
+                f"⏳ {g['remain']}"
             ),
-            "image": {   # 大きめバナー画像
-                "url": g["image"]
-            },
+            "image": {"url": g["image"]},
             "color": 0x00ADEF
         })
 
