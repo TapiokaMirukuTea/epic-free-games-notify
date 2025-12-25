@@ -85,5 +85,15 @@ if free_games and current_titles != last:
     save_last(current_titles)
 
 
+print(
+    g["title"],
+    "discount:", price_info.get("discountPrice"),
+    "original:", price_info.get("originalPrice"),
+    "validUntil:", price_info.get("priceValidUntil")
+)
+
+
+
+
 
 
