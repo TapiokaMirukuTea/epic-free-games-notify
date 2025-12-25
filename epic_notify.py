@@ -6,6 +6,7 @@ STATE_FILE = "last_games.json"
 
 URL = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=ja&country=JP"
 
+# 残り時間表示
 def remaining_time(end_iso):
     if not end_iso:
         return None
@@ -19,6 +20,13 @@ def remaining_time(end_iso):
         return f"残り {hours} 時間"
     return f"残り {hours // 24} 日"
 
+# 終了日時フォーマット（曜日付き）
+def format_end_date(end_iso):
+    dt = datetime.fromisoformat(end_iso.replace("Z", "+00:00")).astimezone()
+    weeks = ["月", "火", "水", "木", "金", "土", "日"]
+    w = weeks[dt.weekday()]
+    return f"{dt.month}月{dt.day}日【{w}】{dt.hour:02d}:{dt.minute:02d}"
+
 def load_last():
     if os.path.exists(STATE_FILE):
         return json.load(open(STATE_FILE, encoding="utf-8"))
@@ -27,6 +35,7 @@ def load_last():
 def save_last(titles):
     json.dump(titles, open(STATE_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
+# API取得
 data = requests.get(URL).json()
 games = data["data"]["Catalog"]["searchStore"]["elements"]
 
@@ -37,11 +46,11 @@ for g in games:
     if not price_info:
         continue
 
-    # 無料判定
+    # 無料のみ
     if price_info.get("discountPrice") != 0:
         continue
 
-    # ★ 正しい終了日時の取得
+    # 正しい無料配布期間の取得
     promotions = g.get("promotions")
     if not promotions:
         continue
@@ -68,6 +77,7 @@ for g in games:
         "title": g["title"],
         "price": price,
         "remain": remain,
+        "end_date": end_date,
         "url": url,
         "image": img
     })
@@ -75,14 +85,22 @@ for g in games:
 last = load_last()
 current_titles = [g["title"] for g in free_games]
 
+# 変更があった時だけ通知
 if free_games and current_titles != last:
     embeds = []
+
     for g in free_games:
         embeds.append({
-            "title": g["title"],
+            "title": f"🎮 {g['title']}",
             "url": g["url"],
-            "description": f"💰 通常 {g['price']}\n⏳ {g['remain']}",
-            "thumbnail": {"url": g["image"]},
+            "description": (
+                f"💰 **価　格**：~~{g['price']}~~ → **無料**\n"
+                f"⏰ **割引期間**：{format_end_date(g['end_date'])} まで\n"
+                f"⌛ {g['remain']}"
+            ),
+            "image": {   # 大きめバナー画像
+                "url": g["image"]
+            },
             "color": 0x00ADEF
         })
 
