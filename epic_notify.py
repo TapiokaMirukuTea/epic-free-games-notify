@@ -19,7 +19,6 @@ def remaining_time(end_iso):
         return f"残り {hours} 時間"
     return f"残り {hours // 24} 日"
 
-
 def load_last():
     if os.path.exists(STATE_FILE):
         return json.load(open(STATE_FILE, encoding="utf-8"))
@@ -38,25 +37,27 @@ for g in games:
     if not price_info:
         continue
 
+    # 無料判定
     if price_info.get("discountPrice") != 0:
         continue
 
-    # ★ ここに入れる
-    print(
-        g["title"],
-        "discount:", price_info.get("discountPrice"),
-        "original:", price_info.get("originalPrice"),
-        "validUntil:", price_info.get("priceValidUntil")
-    )
+    # ★ 正しい終了日時の取得
+    promotions = g.get("promotions")
+    if not promotions:
+        continue
 
-    end_date = price_info.get("priceValidUntil")
+    offers = promotions.get("promotionalOffers")
+    if not offers:
+        continue
+
+    offer = offers[0]["promotionalOffers"][0]
+    end_date = offer.get("endDate")
     if not end_date:
         continue
 
     remain = remaining_time(end_date)
     if not remain:
         continue
-
 
     price = price_info["fmtPrice"]["originalPrice"]
     img = g["keyImages"][0]["url"]
@@ -70,7 +71,6 @@ for g in games:
         "url": url,
         "image": img
     })
-
 
 last = load_last()
 current_titles = [g["title"] for g in free_games]
@@ -92,4 +92,3 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
-
