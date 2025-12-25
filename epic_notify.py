@@ -41,6 +41,14 @@ for g in games:
     if price_info.get("discountPrice") != 0:
         continue
 
+    # ★ ここに入れる
+    print(
+        g["title"],
+        "discount:", price_info.get("discountPrice"),
+        "original:", price_info.get("originalPrice"),
+        "validUntil:", price_info.get("priceValidUntil")
+    )
+
     end_date = price_info.get("priceValidUntil")
     if not end_date:
         continue
@@ -48,6 +56,7 @@ for g in games:
     remain = remaining_time(end_date)
     if not remain:
         continue
+
 
     price = price_info["fmtPrice"]["originalPrice"]
     img = g["keyImages"][0]["url"]
@@ -83,17 +92,4 @@ if free_games and current_titles != last:
     })
 
     save_last(current_titles)
-
-
-print(
-    g["title"],
-    "discount:", price_info.get("discountPrice"),
-    "original:", price_info.get("originalPrice"),
-    "validUntil:", price_info.get("priceValidUntil")
-)
-
-
-
-
-
 
