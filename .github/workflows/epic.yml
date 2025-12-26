@@ -2,26 +2,28 @@ name: Epic Free Games Notify
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # 2時間ごと（UTC）
-  workflow_dispatch:       # 手動実行も可
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Restore state
+        uses: actions/cache@v4
+        with:
+          path: last_games.json
+          key: epic-state
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install requests
+      - run: pip install requests
 
-      - name: Run notifier
-        run: python epic_notify.py
+      - run: python epic_notify.py
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
