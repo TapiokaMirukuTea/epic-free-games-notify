@@ -12,8 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ① 前回状態を復元
       - name: Restore state
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: last_games.json
           key: epic-state
@@ -27,3 +28,11 @@ jobs:
       - run: python epic_notify.py
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+      # ② 実行後に必ず保存
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: last_games.json
+          key: epic-state
