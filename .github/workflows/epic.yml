@@ -2,8 +2,16 @@ name: Epic Free Games Notify
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    # 日本時間 06:00（UTC 21:00）
+    - cron: '0 21 * * *'
+    # 日本時間 18:00（UTC 09:00）
+    - cron: '0 9 * * *'
   workflow_dispatch:
+
+# 同時実行を防止（超重要）
+concurrency:
+  group: epic-notify
+  cancel-in-progress: true
 
 jobs:
   run:
@@ -12,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ① 前回状態を復元
+      # 前回状態を復元
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
@@ -25,11 +33,12 @@ jobs:
 
       - run: pip install requests
 
-      - run: python epic_notify.py
+      - name: Run notifier
+        run: python epic_notify.py
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
-      # ② 実行後に必ず保存
+      # 必ず状態を保存
       - name: Save state
         if: always()
         uses: actions/cache/save@v4
