@@ -2,13 +2,10 @@ name: Epic Free Games Notify
 
 on:
   schedule:
-    # 日本時間 06:00（UTC 21:00）
-    - cron: '0 21 * * *'
-    # 日本時間 18:00（UTC 09:00）
-    - cron: '0 9 * * *'
+    # 2時間おき実行（UTC）
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
-# 同時実行を防止（超重要）
 concurrency:
   group: epic-notify
   cancel-in-progress: true
@@ -20,12 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 前回状態を復元
+      # ① 直近の state を復元
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
           path: last_games.json
-          key: epic-state
+          key: epic-state-${{ github.run_id }}
+          restore-keys: |
+            epic-state-
 
       - uses: actions/setup-python@v5
         with:
@@ -38,10 +37,10 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
-      # 必ず状態を保存
+      # ② 必ず新しい key で保存
       - name: Save state
         if: always()
         uses: actions/cache/save@v4
         with:
           path: last_games.json
-          key: epic-state
+          key: epic-state-${{ github.run_id }}
